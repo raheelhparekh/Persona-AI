@@ -5,7 +5,11 @@ import { PERSONA_PROMPTS } from './personas';
 import './index.css';
 
 const App = () => {
-  const [messages, setMessages] = useState([]);
+  // Store messages separately for each persona
+  const [messagesByPersona, setMessagesByPersona] = useState({
+    hitesh: [],
+    piyush: []
+  });
   const [userInput, setUserInput] = useState('');
   const [currentPersona, setCurrentPersona] = useState('hitesh');
   const [isLoading, setIsLoading] = useState(false);
@@ -15,10 +19,12 @@ const App = () => {
     e.preventDefault();
     if (!userInput.trim()) return;
 
-    // Add user message to chat history
+    // Add user message to current persona's chat history
     const userMessage = { sender: 'user', text: userInput };
-    const newMessages = [...messages, userMessage];
-    setMessages(newMessages);
+    setMessagesByPersona(prev => ({
+      ...prev,
+      [currentPersona]: [...prev[currentPersona], userMessage]
+    }));
     setUserInput('');
     setIsLoading(true);
 
@@ -27,24 +33,42 @@ const App = () => {
       const responseText = await getGeminiResponse(prompt, userInput);
 
       // Add persona's response to chat history
-      setMessages((prevMessages) => [
-        ...prevMessages,
-        { sender: currentPersona, text: responseText },
-      ]);
+      setMessagesByPersona(prev => ({
+        ...prev,
+        [currentPersona]: [
+          ...prev[currentPersona],
+          { sender: currentPersona, text: responseText }
+        ]
+      }));
     } catch (error) {
       console.error("Error fetching from Gemini API:", error);
-      setMessages((prevMessages) => [
-        ...prevMessages,
-        { sender: 'error', text: 'Error: Could not get a response. Please check your API key and try again.' },
-      ]);
+      setMessagesByPersona(prev => ({
+        ...prev,
+        [currentPersona]: [
+          ...prev[currentPersona],
+          { 
+            sender: 'error', 
+            text: 'Error: Could not get a response. Please check your API key and try again.' 
+          }
+        ]
+      }));
     } finally {
       setIsLoading(false);
     }
   };
 
+  // Function to clear messages for current persona
+  const clearMessages = () => {
+    setMessagesByPersona(prev => ({
+      ...prev,
+      [currentPersona]: []
+    }));
+  };
+
   return (
     <Chat
-      messages={messages}
+      messages={messagesByPersona[currentPersona]}
+      setMessages={clearMessages}
       userInput={userInput}
       setUserInput={setUserInput}
       currentPersona={currentPersona}
